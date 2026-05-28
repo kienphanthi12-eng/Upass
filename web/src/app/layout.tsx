@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Instrument_Serif, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import OwlChatbot from "@/components/OwlChatbot";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
+
 
 const instrument = Instrument_Serif({
   weight: "400",
@@ -47,7 +49,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col text-ink antialiased">
         {children}
         <OwlChatbot />
+        <AnalyticsTracker />
       </body>
+
     </html>
   );
 }
