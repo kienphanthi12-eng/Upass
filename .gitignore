@@ -1,0 +1,39 @@
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Python files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+
+# Project temporary data and logs
+data/
+logs/
+*.log
+*.pdf
+*.docx
+
+# Node/Next.js files
+node_modules/
+/web/node_modules/
+/web/.next/
+/web/out/
+/web/build/
+.next/
+out/
+build/
+.DS_Store
+
+# Tool caches
+.claude/
+.qoder/
+_tmp_skills/

@@ -1,0 +1,13 @@
+import sys, io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.path.insert(0, '.')
+from dotenv import load_dotenv; load_dotenv()
+from database import db; db.init_pool()
+
+with db.get_conn() as conn:
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, name, code FROM subjects ORDER BY id")
+        rows = cur.fetchall()
+        print("=== Subjects ===")
+        for r in rows:
+            print(f"ID: {r[0]} | Name: {r[1]} | Code: {r[2]}")
