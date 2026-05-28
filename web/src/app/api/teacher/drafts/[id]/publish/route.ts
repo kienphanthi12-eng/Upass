@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
-import { createAdminSupabase } from '@/lib/supabase-admin'
 import { pickNextCity } from '@/lib/cities'
 
 export async function POST(
@@ -39,6 +38,20 @@ export async function POST(
     const usedSet = new Set<string>((usedRows ?? []).map(r => r.display_title as string))
     const city = pickNextCity(usedSet) ?? null
 
+    // Kiểm tra draft có câu hỏi không
+    const questions = (draft.draft_questions || []) as Array<{
+      question_number: number | null
+      question_type: string
+      content: string
+      options: Record<string, string> | null
+      correct_answer: string | null
+      difficulty_level: string
+    }>
+
+    if (questions.length === 0) {
+      return NextResponse.json({ error: 'Đề chưa có câu hỏi nào. Vui lòng trích xuất câu hỏi trước khi đăng.' }, { status: 400 })
+    }
+
     // Insert vào bảng exams (production)
     const { data: newExam, error: examErr } = await supabase
       .from('exams')
@@ -49,6 +62,7 @@ export async function POST(
         exam_type: examType,
         subject_id: draft.subject_id || 1,
         total_pages: null,
+        ocr_status: 'done',
       })
       .select('id')
       .single()
@@ -58,16 +72,6 @@ export async function POST(
     }
 
     const examId = newExam.id
-
-    // Insert questions (production)
-    const questions = (draft.draft_questions || []) as Array<{
-      question_number: number | null
-      question_type: string
-      content: string
-      options: Record<string, string> | null
-      correct_answer: string | null
-      difficulty_level: string
-    }>
 
     if (questions.length > 0) {
       const questionsPayload = questions.map(q => ({

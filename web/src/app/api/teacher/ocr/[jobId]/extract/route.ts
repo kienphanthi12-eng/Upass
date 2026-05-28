@@ -50,7 +50,18 @@ export async function POST(
       return NextResponse.json({ error: 'Không tìm thấy câu hỏi nào trong file' }, { status: 400 })
     }
 
-    // Bước 3: Tạo draft_exam
+    // Bước 3: Dọn draft_exam cũ (nếu có) rồi tạo mới — tránh duplicate khi retry
+    const { data: existing } = await supabase
+      .from('draft_exams')
+      .select('id')
+      .eq('ocr_job_id', jobId)
+      .eq('status', 'draft')
+      .maybeSingle()
+    if (existing) {
+      await supabase.from('draft_questions').delete().eq('draft_exam_id', existing.id)
+      await supabase.from('draft_exams').delete().eq('id', existing.id)
+    }
+
     const { data: draftExam, error: examErr } = await supabase
       .from('draft_exams')
       .insert({
@@ -70,9 +81,18 @@ export async function POST(
     const extractedQuestions = await extractQuestions(rawQuestions, draftExam.id)
 
     // Bước 5: Insert draft_questions
-    if (extractedQuestions.length > 0) {
-      await supabase.from('draft_questions').insert(extractedQuestions)
+    if (extractedQuestions.length === 0) {
+      // Xóa draft_exam rỗng vừa tạo, báo lỗi
+      await supabase.from('draft_exams').delete().eq('id', draftExam.id)
+      await supabase.from('ocr_jobs').update({
+        status: 'error',
+        error_msg: 'DeepSeek không trích xuất được câu hỏi nào. Hãy kiểm tra lại nội dung markdown rồi thử lại.',
+        updated_at: new Date().toISOString(),
+      }).eq('id', jobId)
+      return NextResponse.json({ error: 'Không trích xuất được câu hỏi nào' }, { status: 400 })
     }
+
+    await supabase.from('draft_questions').insert(extractedQuestions)
 
     // Cập nhật job → done
     await supabase.from('ocr_jobs').update({

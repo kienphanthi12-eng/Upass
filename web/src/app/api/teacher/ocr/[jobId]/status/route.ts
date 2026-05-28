@@ -71,7 +71,7 @@ export async function GET(
           .from('ocr_jobs')
           .update({ status: 'error', error_msg: poll.error, updated_at: new Date().toISOString() })
           .eq('id', jobId)
-        return NextResponse.json({ status: 'error', error: poll.error })
+        return NextResponse.json({ status: 'error', errorMsg: poll.error })
       }
 
       return NextResponse.json({ status: 'ocr_running', state: poll.state })

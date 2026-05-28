@@ -24,13 +24,17 @@ export default function EditorPage() {
     fetch(`/api/teacher/ocr/${params.jobId}/markdown`)
       .then(r => r.json())
       .then(data => {
-        if (data.draftExamId && data.filename?.toLowerCase().endsWith('.xlsx')) {
+        if (data.draftExamId) {
           router.push(`/teacher/drafts/${data.draftExamId}`)
           return
         }
         setMarkdown(data.markdown ?? '')
         setPdfUrl(data.pdfUrl ?? null)
         setFilename(data.filename ?? '')
+        // Nếu lần trích xuất trước thất bại, hiển thị cảnh báo để GV biết cần kiểm tra markdown
+        if (data.jobStatus === 'error' && data.jobError) {
+          setExtractError(`Lần trước thất bại: ${data.jobError}`)
+        }
         setLoading(false)
       })
   }, [params.jobId, router])

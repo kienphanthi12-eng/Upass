@@ -12,7 +12,7 @@ export async function GET(
 
   const { data: job } = await supabase
     .from('ocr_jobs')
-    .select('id, filename, normalized_markdown, pdf_storage_path, teacher_id')
+    .select('id, filename, normalized_markdown, pdf_storage_path, teacher_id, status, error_msg')
     .eq('id', jobId)
     .eq('teacher_id', user.id)
     .single()
@@ -41,6 +41,8 @@ export async function GET(
     pdfUrl,
     filename: job.filename,
     draftExamId: draftExam?.id ?? null,
+    jobStatus: job.status,
+    jobError: job.error_msg ?? null,
   })
 }
 

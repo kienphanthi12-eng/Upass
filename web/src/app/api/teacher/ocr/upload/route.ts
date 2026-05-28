@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { mineruRequestUploadUrl, mineruUploadFile } from '@/lib/mineru'
-import { spawnSync } from 'child_process'
+import { spawn } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
   if (!teacher) return NextResponse.json({ error: 'Không có quyền giáo viên' }, { status: 403 })
 
   const formData = await req.formData()
+  const importType = (formData.get('import_type') as string) || 'text'
+  
   // Support both 'pdf' or any other field name
   const file = (formData.get('pdf') || formData.get('file')) as File | null
   if (!file) {
@@ -42,6 +44,36 @@ export async function POST(req: NextRequest) {
   try {
     const fileBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(fileBuffer)
+
+    // ── Xử lý "Tải đề PDF 2" (Cắt câu dạng ảnh) ──────────────────────────────
+    if (importType === 'pdf2' && ext === 'pdf') {
+      const tempPath = path.join(os.tmpdir(), `${job.id}.pdf`)
+      fs.writeFileSync(tempPath, buffer)
+
+      const scriptPath = path.join(process.cwd(), '..', 'processor', 'crop_pdf_job.py')
+      const child = spawn('python', [
+        scriptPath,
+        '--pdf_path', tempPath,
+        '--job_id', job.id,
+        '--user_id', user.id,
+        '--filename', filename
+      ], {
+        detached: true,
+        stdio: 'ignore'
+      })
+      child.unref()
+
+      // Đổi trạng thái ocr_jobs → ocr_running để client bắt đầu poll
+      await supabase
+        .from('ocr_jobs')
+        .update({
+          status: 'ocr_running',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', job.id)
+
+      return NextResponse.json({ jobId: job.id })
+    }
 
     // ── Xử lý file PDF & Ảnh qua MinerU (OCR pipeline cũ) ────────────────────
     if (ext === 'pdf' || ['png', 'jpg', 'jpeg'].includes(ext)) {
@@ -77,105 +109,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ jobId: job.id })
     }
 
-    // ── Xử lý file Word (.docx) hoặc LaTeX (.tex) cục bộ ────────────────────
-    if (ext === 'docx' || ext === 'tex') {
-      const tempPath = path.join(os.tmpdir(), `${job.id}.${ext}`)
-      fs.writeFileSync(tempPath, buffer)
-
-      const scriptPath = path.join(process.cwd(), '..', 'processor', 'parse_to_markdown.py')
-      const result = spawnSync('python', [scriptPath, tempPath], { encoding: 'utf8' })
-
-      // Xóa file tạm
-      try { fs.unlinkSync(tempPath) } catch {}
-
-      if (result.status !== 0) {
-        throw new Error(result.stderr || 'Lỗi parse file python')
-      }
-
-      const markdown = result.stdout.trim()
-      if (!markdown) {
-        throw new Error('File không chứa nội dung hoặc rỗng')
-      }
-
-      // Lưu markdown trực tiếp và đổi status → ocr_done để client gọi normalize tiếp
-      await supabase
-        .from('ocr_jobs')
-        .update({
-          markdown,
-          status: 'ocr_done',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', job.id)
-
-      return NextResponse.json({ jobId: job.id })
-    }
-
-    // ── Xử lý file Excel (.xlsx) cục bộ ──────────────────────────────────────
-    if (ext === 'xlsx') {
-      const tempPath = path.join(os.tmpdir(), `${job.id}.xlsx`)
-      fs.writeFileSync(tempPath, buffer)
-
-      const scriptPath = path.join(process.cwd(), '..', 'processor', 'excel_parser.py')
-      const result = spawnSync('python', [scriptPath, tempPath], { encoding: 'utf8' })
-
-      // Xóa file tạm
-      try { fs.unlinkSync(tempPath) } catch {}
-
-      if (result.status !== 0) {
-        throw new Error(result.stderr || 'Lỗi parse Excel python')
-      }
-
-      const parsed = JSON.parse(result.stdout)
-      if (parsed.error) {
-        throw new Error(parsed.error)
-      }
-
-      const examTitle = filename.replace(/\.xlsx$/i, '').replace(/[-_]/g, ' ')
-      
-      // Tạo draft_exam trực tiếp
-      const { data: draftExam, error: examErr } = await supabase
-        .from('draft_exams')
-        .insert({
-          teacher_id: user.id,
-          ocr_job_id: job.id,
-          title: examTitle,
-          status: 'draft',
-          exam_type: parsed.type === 'offline_answer_key' ? 'offline' : 'thi_thu'
-        })
-        .select('id')
-        .single()
-
-      if (examErr || !draftExam) {
-        throw new Error('Không tạo được draft exam từ Excel')
-      }
-
-      // Chuẩn hóa và insert draft_questions
-      const questionsData = (parsed.data || []).map((q: any) => ({
-        draft_exam_id: draftExam.id,
-        question_number: q.question_number,
-        question_type: q.question_type || 'trac_nghiem',
-        content: q.content || `Đáp án mã đề ${q.ma_de || ''}`,
-        options: q.options || null,
-        correct_answer: q.correct_answer || null,
-        difficulty_level: q.difficulty_level || 'Nhận biết',
-        topic: q.topic || null
-      }))
-
-      if (questionsData.length > 0) {
-        await supabase.from('draft_questions').insert(questionsData)
-      }
-
-      // Cập nhật ocr_job trực tiếp → done
-      await supabase
-        .from('ocr_jobs')
-        .update({
-          status: 'done',
-          question_count: questionsData.length,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', job.id)
-
-      return NextResponse.json({ jobId: job.id })
+    // ── DOCX / TEX / XLSX / ZIP — không hỗ trợ trên server ──────────────────
+    // (Cần Python + processor/ script, chỉ chạy được trên máy local)
+    if (['docx', 'tex', 'xlsx', 'zip'].includes(ext)) {
+      await supabase.from('ocr_jobs').delete().eq('id', job.id)
+      return NextResponse.json(
+        { error: `Định dạng .${ext} chưa được hỗ trợ trên server. Vui lòng chuyển sang PDF rồi tải lại.` },
+        { status: 400 }
+      )
     }
 
     throw new Error('Không thể xử lý định dạng file này')
