@@ -80,6 +80,93 @@ def _extract_answers(tables) -> Dict[str, Dict[str, str]]:
                     ans['II'][n] = code
                 continue
 
+        # ── Format (Câu, Đáp án) × n cột — pairs side by side
+        # header = ['câu', 'đáp án', 'câu', 'đáp án', ...] (2, 4, 6, 8 cột)
+        if (len(header) >= 2 and len(header) % 2 == 0
+                and header[0] in ('câu', '')
+                and header[1] in ('đáp án', 'answer', 'đáp án (answer)', '')):
+            n_pairs = len(header) // 2
+            valid = all(
+                header[j*2] in ('câu', '') and header[j*2+1] in ('đáp án', 'answer', 'đáp án (answer)', '')
+                for j in range(n_pairs)
+            )
+            if valid:
+                for row in rows[1:]:
+                    for p in range(n_pairs):
+                        num_cell = row[p*2].strip() if p*2 < len(row) else ''
+                        ans_cell = row[p*2+1].strip() if p*2+1 < len(row) else ''
+                        if not num_cell or not ans_cell:
+                            continue
+                        m = re.search(r'\d+', num_cell)
+                        if not m:
+                            continue
+                        n = m.group()
+                        av = ans_cell.upper()
+                        if av in ('A', 'B', 'C', 'D'):
+                            ans['I'][n] = av
+                        elif re.match(r'^[DS?]{4}$', av):
+                            ans['II'][n] = av
+                        else:
+                            # Text answer (TLN) → Phần III
+                            ans['III'][n] = ans_cell
+                continue
+
+        # ── Format "N. X" — cells chứa số và đáp án, không có header
+        # Ví dụ: ['1. C', '2. C', '3. B', ...] hoặc ['1. C', '2. D', ...]
+        if rows and all(
+            re.match(r'^\d+\.\s*[A-D]$', c.strip()) or c.strip() == ''
+            for row in rows for c in row
+            if c.strip()
+        ):
+            for row in rows:
+                for cell in row:
+                    m = re.match(r'^(\d+)\.\s*([A-D])$', cell.strip())
+                    if m:
+                        ans['I'][m.group(1)] = m.group(2)
+            continue
+
+        # ── Format plain 2-row: row0 = số câu, row1 = đáp án (không có header)
+        # Ví dụ (LY Ca Mau Phần I): row0=['1','2','3',...,'18'], row1=['B','D','A',...,'C']
+        # Ví dụ (LY Ca Mau Phần II): row0=['1a','1b','1c','1d','2a',...], row1=['S','Đ','Đ',...]
+        if len(rows) == 2 and len(rows[0]) >= 3:
+            r0 = rows[0]; r1 = rows[1]
+            # Case A: all cells in row0 are plain numbers
+            if all(re.match(r'^\d+$', c.strip()) for c in r0 if c.strip()):
+                # Case A1: row1 are A/B/C/D → Phần I TN answers
+                if all(c.strip().upper() in ('A','B','C','D','') for c in r1):
+                    for num, val in zip(r0, r1):
+                        n = num.strip(); v = val.strip().upper()
+                        if n and v in ('A','B','C','D'):
+                            ans['I'][n] = v
+                    continue
+                # Case A2: row1 are text (numeric or mixed) → Phần III TLN answers
+                if all(c.strip() for c in r1):  # all non-empty
+                    for num, val in zip(r0, r1):
+                        n = num.strip(); v = val.strip()
+                        if n and v:
+                            ans['III'][n] = v
+                    continue
+            # Case B: row0 = ['Na','Nb','Nc','Nd','(N+1)a',...], row1 = ['S'/'Đ',...]
+            # Composite DS format — rebuild per-question DSDS string
+            if all(re.match(r'^\d+[abcd]$', c.strip(), re.IGNORECASE) for c in r0 if c.strip()):
+                ds_map: Dict[str, list] = {}
+                for cell, val in zip(r0, r1):
+                    m = re.match(r'^(\d+)([abcd])$', cell.strip(), re.IGNORECASE)
+                    if not m:
+                        continue
+                    n, letter = m.group(1), m.group(2).lower()
+                    if n not in ds_map:
+                        ds_map[n] = {'a': '?', 'b': '?', 'c': '?', 'd': '?'}
+                    v = val.strip().upper()
+                    if v in ('Đ', 'D', 'ĐÚNG', 'TRUE'):
+                        ds_map[n][letter] = 'D'
+                    elif v in ('S', 'SAI', 'FALSE'):
+                        ds_map[n][letter] = 'S'
+                for n, parts in ds_map.items():
+                    code = parts['a'] + parts['b'] + parts['c'] + parts['d']
+                    ans['II'][n] = code
+                continue
+
         # ── Phần I / III: header = [câu / đáp án, 1, 2, 3, ...]
         # Table có nhiều hơn 1 row với pattern câu/đáp án
         i = 0
@@ -193,7 +280,11 @@ def parse_docx_questions(docx_path: str) -> Tuple[str, Dict, List[dict]]:
     opt_buf: Dict[str, str] = {}
     stmt_buf: Dict[str, str] = {}
 
-    STOP_KEYWORDS = ('ĐÁP ÁN', 'LỜI GIẢI', '----- HẾT', '--- HẾT', 'HẾT -----')
+    # Patterns for "answer key / end of exam" detection.
+    # Use startswith for word-based keywords to avoid false matches like
+    # "đáp án của mình" inside exam instructions.
+    STOP_STARTS = ('ĐÁP ÁN', 'LỜI GIẢI')
+    STOP_CONTAINS = ('----- HẾT', '--- HẾT', 'HẾT -----', '----------\nHẾT')
 
     for para in doc.paragraphs:
         text = para.text.strip()
@@ -203,7 +294,8 @@ def parse_docx_questions(docx_path: str) -> Tuple[str, Dict, List[dict]]:
         upper = text.upper()
 
         # Stop at answer key section
-        if any(kw in upper for kw in STOP_KEYWORDS):
+        if (any(upper.startswith(kw) for kw in STOP_STARTS)
+                or any(kw in upper for kw in STOP_CONTAINS)):
             _save_current(questions, current_q, opt_buf, stmt_buf)
             break
 
@@ -224,19 +316,30 @@ def parse_docx_questions(docx_path: str) -> Tuple[str, Dict, List[dict]]:
             section = 'III'
             continue
 
-        if not section:
-            continue
-
-        # New question
+        # New question — Câu N. (Vietnamese) or Question N. (English)
+        # Check này trước `if not section` để tiếng Anh tự set section='I'
         m_cau = re.match(r'^Câu\s+(\d+)\s*[\.\:]\s*(.*)', text, re.DOTALL)
-        if m_cau:
+        m_qen = re.match(r'^Question\s+(\d+)[\.\:]\s*(.*)', text, re.DOTALL | re.IGNORECASE) if not m_cau else None
+        if m_cau or m_qen:
             _save_current(questions, current_q, opt_buf, stmt_buf)
+            m = m_cau or m_qen
+            qnum = int(m.group(1))
+            rest = m.group(2).strip()
+            # For English inline format: "Question N. A. opt  B. opt  C. opt  D. opt"
+            inline_opts = _parse_options_text(rest) if rest else {}
+            if not section:
+                section = 'I'  # English exams: auto-set section
+            # content = rest (options text as fallback) keeps len > 15 → không bị auto_hide
             current_q = {
                 'section': section,
-                'number': int(m_cau.group(1)),
-                'content': m_cau.group(2).strip(),
+                'number': qnum,
+                'content': rest if rest else text,
             }
-            opt_buf = {}; stmt_buf = {}
+            opt_buf = inline_opts
+            stmt_buf = {}
+            continue
+
+        if not section:
             continue
 
         if not current_q:
@@ -362,10 +465,19 @@ def auto_hide_buggy(exam_id: int, conn) -> int:
     with conn.cursor() as cur:
         hidden = 0
 
-        # 1. Nội dung quá ngắn
+        # 1. Nội dung quá ngắn — nhưng không ẩn TN có đủ 4 đáp án A/B/C/D
+        #    (fill-in-blank question như "________" vẫn hợp lệ nếu có options)
         cur.execute("""
             UPDATE questions SET is_hidden = true
             WHERE exam_id = %s AND is_hidden = false AND LENGTH(TRIM(content)) < 15
+              AND NOT (
+                question_type = 'trac_nghiem'
+                AND options IS NOT NULL
+                AND (options)::jsonb ? 'A'
+                AND (options)::jsonb ? 'B'
+                AND (options)::jsonb ? 'C'
+                AND (options)::jsonb ? 'D'
+              )
         """, (exam_id,))
         hidden += cur.rowcount
 

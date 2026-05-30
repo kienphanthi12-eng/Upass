@@ -6,6 +6,8 @@ import SectionNumber from '@/components/ui/SectionNumber'
 import MarqueeStrip from '@/components/ui/MarqueeStrip'
 import ScrollReveal from '@/components/ui/ScrollReveal'
 import MagneticButton from '@/components/ui/MagneticButton'
+import CustomOwlSVG from '@/components/ui/CustomOwlSVG'
+import { LogoMark } from '@/components/ui/Logo'
 
 const FEATURES = [
   {
@@ -51,40 +53,103 @@ export default function LandingPage() {
         {/* ─── (01) Hero ─────────────────────────────────────── */}
         <section className="relative">
           <div className="max-w-7xl mx-auto px-6 sm:px-10 pt-16 sm:pt-28 pb-16 sm:pb-24">
-            <ScrollReveal>
-              <SectionNumber n={1} label="Nền tảng" />
-            </ScrollReveal>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+              
+              {/* Left Column - Hero content */}
+              <div className="lg:col-span-7">
+                <ScrollReveal>
+                  <SectionNumber n={1} label="Nền tảng" />
+                </ScrollReveal>
 
-            <ScrollReveal delay={0.1}>
-              <DisplayHeading size="2xl" className="mt-8 max-w-5xl">
-                Chinh phục kỳ thi <em className="font-display italic text-moss">THPT</em>
-                <br />
-                bằng cách khác biệt.
-              </DisplayHeading>
-            </ScrollReveal>
+                <ScrollReveal delay={0.1}>
+                  <DisplayHeading size="2xl" className="mt-8 max-w-5xl">
+                    Chinh phục kỳ thi <em className="font-display italic text-moss">THPT</em>
+                    <br />
+                    bằng cách khác biệt.
+                  </DisplayHeading>
+                </ScrollReveal>
 
-            <ScrollReveal delay={0.2}>
-              <div className="mt-12 max-w-2xl">
-                <p className="text-lg sm:text-xl text-ink-70 leading-relaxed">
-                  Luyện tập với hàng nghìn câu hỏi trắc nghiệm được phân loại theo chuẩn,
-                  thi thử có đếm giờ và theo dõi tiến bộ của bạn mỗi ngày.
-                </p>
+                <ScrollReveal delay={0.2}>
+                  <div className="mt-12 max-w-2xl">
+                    <p className="text-lg sm:text-xl text-ink-70 leading-relaxed font-sans">
+                      Luyện tập với hàng nghìn câu hỏi trắc nghiệm được phân loại theo chuẩn,
+                      thi thử có đếm giờ và theo dõi tiến bộ của bạn mỗi ngày.
+                    </p>
+                  </div>
+                </ScrollReveal>
+
+                <ScrollReveal delay={0.35}>
+                  <div className="mt-12 flex flex-wrap items-center gap-6">
+                    <MagneticButton href="/register" variant="primary">
+                      Bắt đầu luyện thi <span aria-hidden>→</span>
+                    </MagneticButton>
+                    <Link
+                      href="/exams"
+                      className="text-base tracking-label text-ink link-editorial font-sans"
+                    >
+                      Xem đề thi
+                    </Link>
+                  </div>
+                </ScrollReveal>
               </div>
-            </ScrollReveal>
 
-            <ScrollReveal delay={0.35}>
-              <div className="mt-12 flex flex-wrap items-center gap-6">
-                <MagneticButton href="/register" variant="primary">
-                  Bắt đầu luyện thi <span aria-hidden>→</span>
-                </MagneticButton>
-                <Link
-                  href="/exams"
-                  className="text-base tracking-label text-ink link-editorial"
-                >
-                  Xem đề thi
-                </Link>
+              {/* Right Column - Premium brand artwork */}
+              <div className="lg:col-span-5 hidden lg:block">
+                <ScrollReveal delay={0.3} className="relative w-full aspect-square flex items-center justify-center">
+                  {/* Geometric Grid Background */}
+                  <div className="absolute inset-0 border border-line/40 opacity-40 grid grid-cols-3 grid-rows-3 pointer-events-none">
+                    <div className="border-r border-b border-line/30"></div>
+                    <div className="border-r border-b border-line/30"></div>
+                    <div className="border-b border-line/30"></div>
+                    <div className="border-r border-b border-line/30"></div>
+                    <div className="border-r border-b border-line/30"></div>
+                    <div className="border-b border-line/30"></div>
+                  </div>
+                  
+                  {/* Main Brand Journal Card */}
+                  <div className="relative z-10 w-4/5 h-4/5 bg-snow border border-line p-8 card-shadow flex flex-col justify-between hover:rotate-1 transition-transform duration-500 cursor-default">
+                    <div className="flex justify-between items-start">
+                      <LogoMark size={40} />
+                      <span className="font-mono text-[9px] text-ink-30 uppercase tracking-widest">EST. 2026</span>
+                    </div>
+                    
+                    <div className="my-auto flex flex-col items-center py-4">
+                      {/* Floating Academic Owl */}
+                      <div className="w-28 h-28 text-ink animate-float-owl flex items-center justify-center">
+                        <CustomOwlSVG size={96} />
+                      </div>
+                      
+                      {/* Math equations styled like printed textbook */}
+                      <div className="mt-4 font-serif italic text-2xl text-moss select-none text-center">
+                        f(x) = ∫ <span className="text-sm not-italic font-sans align-super">b</span><span className="text-[10px] not-italic font-sans align-sub">a</span> g(t)dt
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-end border-t border-line-soft pt-4">
+                      <div className="text-[10px] font-mono text-ink-50 uppercase tracking-wider">
+                        THPT EXAM PREP
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 bg-moss rounded-full animate-ping" />
+                        <span className="text-[9px] font-mono text-moss font-semibold uppercase tracking-wider">LIVE</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Overlapping small calendar card */}
+                  <div className="absolute z-20 bottom-2 right-2 bg-paper-deep border border-line p-4 shadow-xl w-[170px] -rotate-3 hover:-rotate-1 transition-transform duration-500 select-none">
+                    <p className="font-mono text-[8px] text-ink-50 font-semibold tracking-wider">THI THỬ THPT</p>
+                    <p className="font-display text-sm text-ink mt-1 italic">Đợt 1: Toán học</p>
+                    <div className="h-px bg-line my-1.5" />
+                    <div className="flex justify-between items-center text-[9px] font-mono">
+                      <span className="text-moss font-semibold">TỰ ĐỘNG OCR</span>
+                      <span className="text-ink-50">90 phút</span>
+                    </div>
+                  </div>
+                </ScrollReveal>
               </div>
-            </ScrollReveal>
+
+            </div>
           </div>
 
           {/* Ticker below hero */}

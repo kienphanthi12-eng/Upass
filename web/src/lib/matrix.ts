@@ -308,7 +308,10 @@ export async function generateExamVariants(
         source_question_id: q.id,   // reference back to original
       }))
 
-      await supabase.from('draft_questions').insert(draftQuestions)
+      const { error: insertErr } = await supabase.from('draft_questions').insert(draftQuestions)
+      if (insertErr) {
+        throw new Error(`Lỗi lưu câu hỏi ma trận: ${insertErr.message}`)
+      }
     }
 
     draft_exam_ids.push(exam.id)

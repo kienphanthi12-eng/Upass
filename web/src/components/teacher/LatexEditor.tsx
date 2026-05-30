@@ -80,10 +80,11 @@ function RenderLatex({ text }: { text: string }) {
                     <span key={`${j}-${k}`}>{line}{k < arr.length - 1 && <br />}</span>
                   ))
                 }
+                const isOcrCrop = chunk.src.includes('/exam-images/') || chunk.src.includes('exam-images')
                 return (
                   <img key={j} src={chunk.src} alt={chunk.alt}
                     className="max-w-full my-2 rounded border border-gray-200"
-                    style={{ maxHeight: 300 }}
+                    style={{ maxHeight: isOcrCrop ? 'none' : 300 }}
                   />
                 )
               })}

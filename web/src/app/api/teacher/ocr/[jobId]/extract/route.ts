@@ -92,7 +92,10 @@ export async function POST(
       return NextResponse.json({ error: 'Không trích xuất được câu hỏi nào' }, { status: 400 })
     }
 
-    await supabase.from('draft_questions').insert(extractedQuestions)
+    const { error: insertErr } = await supabase.from('draft_questions').insert(extractedQuestions)
+    if (insertErr) {
+      throw new Error(`Lỗi lưu câu hỏi nháp: ${insertErr.message}`)
+    }
 
     // Cập nhật job → done
     await supabase.from('ocr_jobs').update({

@@ -1,74 +1,77 @@
-import re
-import sys
-import io
-from pathlib import Path
+import sys, re
+sys.path.insert(0, '.')
 
-# Fix console encoding
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+def splitNormalizedText(normalizedText: str):
+    # This is a representation of the TS function in Python
+    # Let's inspect what happens
+    pass
 
-MINERU_DIR = Path("C:/Users/HP/MinerU")
-folders = [
-    "thuvienhoclieu.com-De-thi-thu-Tot-Nghiep-2026-Vat-Li-So-GD-Lam-Dong-.pdf-406acd9e-0fbe-4aa4-adc3-af839963a842",
-    "thuvienhoclieu.com-De-thi-thu-TN-THPT-2026-mon-VAT-LI-GD-DONG-NAI.pdf-62b68da5-d3d1-409d-9000-5a57804a6474",
-    "thuvienhoclieu.com-De-thi-thu-Tn-THPT-nam-2026-Vat-Li-So-GD-Ca-Mau-Lan-1.pdf-f12f691a-7409-42a1-b2fd-7f8ed19bdc63",
-    "thuvienhoclieu.com-De-thi-thu-Tot-Nghiep-2026-Hoa-So-GD-Lam-Dong-.pdf-2ddd6d08-eeef-4b2e-bd31-238b5b76f028"
-]
+# Let's run a node script to test the actual TypeScript/JS function in the app
+node_script = """
+const fs = require('fs');
+const path = require('path');
 
-KEYWORDS = [
-    r"(?i)(?:##?\s*)?LỜI\s*GIẢI\s*THAM\s*KHẢO",
-    r"(?i)(?:##?\s*)?LOI\s*GIAI\s*THAM\s*KHAO",
-    r"(?i)(?:##?\s*)?LỜI\s*GIẢI\s*CHI\s*TIẾT",
-    r"(?i)(?:##?\s*)?LOI\s*GIAI\s*CHI\s*TIET",
-    r"(?i)(?:##?\s*)?HƯỚNG\s*DẪN\s*GIẢI\s*CHI\s*TIẾT",
-    r"(?i)(?:##?\s*)?HUONG\s*DAN\s*GIAI\s*CHI\s*TIET",
-    r"(?i)(?:##?\s*)?HƯỚNG\s*DẪN\s*GIẢI",
-    r"(?i)(?:##?\s*)?HUONG\s*DAN\s*GIAI",
-    r"(?i)(?:##?\s*)?ĐÁP\s*ÁN\s*CHI\s*TIẾT",
-    r"(?i)(?:##?\s*)?DAP\s*AN\s*CHI\s*TIET",
-    r"(?i)(?:##?\s*)?BẢNG\s*ĐÁP\s*ÁN",
-    r"(?i)(?:##?\s*)?BANG\s*DAP\s*AN",
-    r"(?i)(?:##?\s*)?ĐÁP\s*ÁN\s*-\s*LỜI\s*GIẢI",
-    r"(?i)(?:##?\s*)?DAP\s*AN\s*-\s*LOI\s*GIAI",
-    r"(?i)LOI\s*GIAI\s*THAM\s*KHAO",
-    r"(?i)LỜI\s*GIẢI\s*THAM\s*KHẢO",
-    r"(?i)PHẦN\s*I\s*[-–]\s*ĐÁP\s*ÁN",
-    r"(?i)PHAN\s*I\s*[-–]\s*DAP\s*AN"
-]
+// Port splitNormalizedText from deepseek.ts to JavaScript
+function splitNormalizedText(normalizedText) {
+  const partPat = /==PHAN\\s*(\\d+)==/gi;
+  const splits = [...normalizedText.matchAll(partPat)];
 
-def split_raw_markdown(text: str):
-    best_idx = -1
-    matched_keyword = ""
-    for kw in KEYWORDS:
-        matches = list(re.finditer(kw, text))
-        if matches:
-            idx = matches[0].start()
-            if best_idx == -1 or idx < best_idx:
-                best_idx = idx
-                matched_keyword = matches[0].group(0)
-    
-    if best_idx == -1:
-        for m in re.finditer(r"(?i)(?:##?\s*)?Phan\s*I", text):
-            sub = text[m.start():m.start()+500]
-            if "table" in sub or "|" in sub:
-                best_idx = m.start()
-                matched_keyword = "Phan I + Table"
-                break
-                
-    if best_idx != -1:
-        return text[:best_idx], text[best_idx:], matched_keyword
-    return text, "", ""
+  const partsMap = new Map();
+  let maxSeen = 0;
 
-for f_name in folders:
-    p = MINERU_DIR / f_name / "full.md"
-    if p.exists():
-        text = p.read_text(encoding="utf-8")
-        q_part, a_part, kw = split_raw_markdown(text)
-        print(f"File: {f_name[:65]}...")
-        print(f"  Matched: {repr(kw)}")
-        print(f"  Total len: {len(text):,}, Questions len: {len(q_part):,}, Answers len: {len(a_part):,}")
-        if a_part:
-            print(f"  First 100 chars of answers: {repr(a_part[:100])}")
-        else:
-            print("  [WARNING] No split found!")
-        print()
+  for (let i = 0; i < splits.length; i++) {
+    const partNum = parseInt(splits[i][1]);
+    const start = splits[i].index + splits[i][0].length;
+    const end = i + 1 < splits.length ? splits[i + 1].index : normalizedText.length;
+    const text = normalizedText.slice(start, end).trim();
+
+    if (partNum > maxSeen) {
+      maxSeen = partNum;
+      partsMap.set(partNum, text);
+    } else {
+      const existing = partsMap.get(maxSeen) || '';
+      partsMap.set(maxSeen, existing + '\\n\\n' + text);
+    }
+  }
+
+  if (partsMap.size === 0) partsMap.set(1, normalizedText);
+
+  console.log("partsMap size:", partsMap.size);
+  console.log("partsMap keys:", [...partsMap.keys()]);
+
+  const questions = [];
+  for (const partNum of [...partsMap.keys()].sort()) {
+    const partText = partsMap.get(partNum);
+    const cauPat = /(?:^|\\n)\\s*\\[CAU\\s+(\\d+)\\]/gi;
+    const matches = [...partText.matchAll(cauPat)];
+    console.log(`Part \${partNum} matches count:`, matches.length);
+
+    for (let i = 0; i < matches.length; i++) {
+      const qNum = parseInt(matches[i][1]);
+      const start = matches[i].index;
+      const end = i + 1 < matches.length ? matches[i + 1].index : partText.length;
+      const rawContent = partText.slice(start, end).trim();
+
+      questions.push({
+        part: `part_\${partNum}`,
+        question_index: qNum,
+        raw_content: rawContent,
+      });
+    }
+  }
+
+  return questions;
+}
+
+const text = fs.readFileSync('scratch/job_normalized.md', 'utf-8');
+const qs = splitNormalizedText(text);
+console.log("Total extracted questions:", qs.length);
+if (qs.length > 0) {
+  console.log("First question sample:", qs[0]);
+}
+""";
+
+with open('scratch/test_split.js', 'w', encoding='utf-8') as f:
+    f.write(node_script)
+
+print("test_split.js created.")

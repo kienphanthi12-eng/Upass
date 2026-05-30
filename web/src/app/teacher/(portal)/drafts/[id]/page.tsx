@@ -170,10 +170,10 @@ export default function DraftEditorPage() {
       </div>
     )
   }
-
-  const p1 = questions.filter(q => q.question_type === 'trac_nghiem')
-  const p2 = questions.filter(q => q.question_type === 'dung_sai')
-  const p3 = questions.filter(q => q.question_type === 'tu_luan')
+  const sortedQuestions = [...questions].sort((a, b) => (a.question_number ?? 0) - (b.question_number ?? 0))
+  const p1 = sortedQuestions.filter(q => q.question_type === 'trac_nghiem')
+  const p2 = sortedQuestions.filter(q => q.question_type === 'dung_sai')
+  const p3 = sortedQuestions.filter(q => q.question_type === 'tu_luan')
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

@@ -26,11 +26,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "U-PASS — Nền tảng luyện thi THPT",
+  title: "U-PASS — Nền tảng Luyện thi THPT Quốc gia | Tối Giản & Tập Trung",
   description:
-    "Nền tảng luyện thi trắc nghiệm trực tuyến — ôn tập hiệu quả, tự tin bước vào kỳ thi tốt nghiệp THPT.",
+    "Hệ thống luyện thi trắc nghiệm THPT Quốc gia không quảng cáo nhiễu. Trải nghiệm học thuật cao cấp với công cụ OCR đề thi chuyên nghiệp và trợ lý AI Cú Mèo giải đáp chi tiết 24/7.",
   keywords:
-    "U-PASS, UPASS, luyện thi THPT, trắc nghiệm, toán, vật lý, hóa học, luyện thi đại học",
+    "U-PASS, UPASS, luyện thi THPT, trắc nghiệm THPT, đề thi tốt nghiệp, ôn thi đại học, OCR đề thi, giải bài tập bằng AI, toán lý hóa anh thpt",
 };
 
 export default function RootLayout({

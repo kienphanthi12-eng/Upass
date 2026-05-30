@@ -210,18 +210,21 @@ export default function UploadPage() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [jobId, setJobId] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
+  const [importType, setImportType] = useState<'text' | 'pdf2'>('text')
 
   const handleFileDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     const f = e.dataTransfer.files[0]
     if (f) {
       const ext = f.name.split('.').pop()?.toLowerCase()
-      const allowed = ['pdf', 'docx', 'xlsx', 'tex', 'zip', 'png', 'jpg', 'jpeg']
+      const allowed = importType === 'pdf2' ? ['pdf'] : ['pdf', 'docx', 'xlsx', 'tex', 'zip', 'png', 'jpg', 'jpeg']
       if (ext && allowed.includes(ext)) {
         setFile(f)
+      } else {
+        alert(importType === 'pdf2' ? 'Chỉ hỗ trợ file PDF đối với phương pháp Tải đề PDF 2' : 'Định dạng file không hỗ trợ')
       }
     }
-  }, [])
+  }, [importType])
 
   const pollStatus = useCallback(async (jid: string) => {
     const MAX_POLLS = 120 // 10 phút (5s × 120)
@@ -313,6 +316,7 @@ export default function UploadPage() {
 
     const form = new FormData()
     form.append('pdf', file)
+    form.append('import_type', importType)
 
     const res = await fetch('/api/teacher/ocr/upload', { method: 'POST', body: form })
     const data = await res.json()
@@ -340,6 +344,40 @@ export default function UploadPage() {
         Chọn File hoặc kéo thả File vào đây. Hỗ trợ các định dạng .pdf, .docx, .xlsx, .tex, .zip, Ảnh.
       </p>
 
+      {/* Phương thức import */}
+      {phase === 'idle' && (
+        <div className="mt-8 flex gap-4 border-b border-line pb-6">
+          <button
+            type="button"
+            onClick={() => {
+              setImportType('text')
+              setFile(null)
+            }}
+            className={`px-5 py-2.5 text-sm font-medium border transition-all ${
+              importType === 'text'
+                ? 'bg-ink text-paper border-ink'
+                : 'bg-transparent text-ink-50 border-line hover:border-ink hover:text-ink'
+            }`}
+          >
+            Số hóa Text & Công thức (OCR)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setImportType('pdf2')
+              setFile(null)
+            }}
+            className={`px-5 py-2.5 text-sm font-medium border transition-all ${
+              importType === 'pdf2'
+                ? 'bg-ink text-paper border-ink'
+                : 'bg-transparent text-ink-50 border-line hover:border-ink hover:text-ink'
+            }`}
+          >
+            Tải đề PDF 2 (Cắt câu dạng ảnh)
+          </button>
+        </div>
+      )}
+
       <div className="mt-12">
         {/* Upload zone */}
         {phase === 'idle' && (
@@ -352,13 +390,28 @@ export default function UploadPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx,.xlsx,.tex,.zip,.png,.jpg,.jpeg"
+              accept={importType === 'pdf2' ? '.pdf' : '.pdf,.docx,.xlsx,.tex,.zip,.png,.jpg,.jpeg'}
               className="hidden"
-              onChange={e => setFile(e.target.files?.[0] ?? null)}
+              onChange={e => {
+                const f = e.target.files?.[0] ?? null
+                if (f) {
+                  const ext = f.name.split('.').pop()?.toLowerCase()
+                  const allowed = importType === 'pdf2' ? ['pdf'] : ['pdf', 'docx', 'xlsx', 'tex', 'zip', 'png', 'jpg', 'jpeg']
+                  if (ext && allowed.includes(ext)) {
+                    setFile(f)
+                  } else {
+                    alert('Chỉ hỗ trợ file PDF đối với phương pháp Tải đề PDF 2')
+                  }
+                }
+              }}
             />
             <Upload size={32} className="text-ink-30 mx-auto mb-4" />
             <p className="font-display text-2xl text-ink italic">Chọn File hoặc kéo thả File vào đây</p>
-            <p className="text-xs tracking-label text-ink-50 mt-3">Hỗ trợ PDF, Word, Excel, Latex, Zip, Ảnh (Tối đa 50MB)</p>
+            <p className="text-xs tracking-label text-ink-50 mt-3">
+              {importType === 'pdf2'
+                ? 'Chỉ hỗ trợ PDF (Tối đa 50MB) - Phân đoạn tự động dạng ảnh chuẩn xác 100%'
+                : 'Hỗ trợ PDF, Word, Excel, Latex, Zip, Ảnh (Tối đa 50MB)'}
+            </p>
           </div>
         )}
 
