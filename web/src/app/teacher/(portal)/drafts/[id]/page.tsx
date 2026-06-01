@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, Eye, Trash2, Plus, CheckCircle, AlertCircle, Send } from 'lucide-react'
+import { ArrowLeft, Save, Eye, Trash2, Plus, CheckCircle, AlertCircle, Send, Printer } from 'lucide-react'
 import LatexEditor, { RenderLatex } from '@/components/teacher/LatexEditor'
 import type { DraftExam, DraftQuestion } from '@/lib/teacher-types'
 import { EXAM_TYPE_OPTIONS, DIFFICULTY_OPTIONS } from '@/lib/teacher-types'
@@ -92,6 +92,7 @@ export default function DraftEditorPage() {
   const [showPublish, setShowPublish] = useState(false)
   const [publishedExamId, setPublishedExamId] = useState<number | null>(null)
   const [showAddMenu, setShowAddMenu] = useState(false)
+  const [includeSolutions, setIncludeSolutions] = useState(false)
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/teacher/drafts/${id}`)
@@ -180,7 +181,7 @@ export default function DraftEditorPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Link href="/teacher/dashboard" className="text-gray-400 hover:text-navy transition-colors">
+          <Link href="/teacher/dashboard" className="text-gray-400 hover:text-navy transition-colors no-print">
             <ArrowLeft size={20} />
           </Link>
           <div>
@@ -188,7 +189,26 @@ export default function DraftEditorPage() {
             <p className="text-sm text-gray-400">{questions.length} câu hỏi · {draft.status === 'published' ? '✅ Đã đăng' : 'Đang soạn'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 no-print">
+          {/* Checkbox kèm lời giải */}
+          <label className="flex items-center gap-1.5 text-xs text-gray-500 font-semibold cursor-pointer select-none border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50">
+            <input
+              type="checkbox"
+              checked={includeSolutions}
+              onChange={e => setIncludeSolutions(e.target.checked)}
+              className="rounded border-gray-300 text-navy focus:ring-navy cursor-pointer"
+            />
+            Kèm lời giải & ĐA
+          </label>
+
+          {/* Nút In đề thi */}
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50"
+          >
+            <Printer size={15} /> In đề (PDF)
+          </button>
+
           {saveMsg && <span className="text-green-600 text-sm flex items-center gap-1"><CheckCircle size={14} />{saveMsg}</span>}
           {draft.status === 'published' && publishedExamId && (
             <Link href={`/exams/${publishedExamId}`} target="_blank"
@@ -280,6 +300,45 @@ export default function DraftEditorPage() {
       {showPublish && draft && (
         <PublishModal draft={draft} onPublish={handlePublish} onClose={() => setShowPublish(false)} />
       )}
+
+      {/* CSS print style override */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          /* Hide non-print elements */
+          .no-print, button, a[href^="/teacher"], .no-print-important,
+          .fixed.inset-y-0.left-0, /* sidebar */
+          .fixed.top-0.left-0.right-0 /* top bar */ {
+            display: none !important;
+          }
+          /* Custom margins */
+          @page {
+            margin: 2cm;
+          }
+          body, html, main, #__next, .max-w-5xl {
+            background: white !important;
+            color: black !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+            box-shadow: none !important;
+          }
+          .shadow-none-print {
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 0 2rem 0 !important;
+          }
+          .print-avoid-break {
+            page-break-inside: avoid !important;
+          }
+          /* Solution visibility */
+          ${!includeSolutions ? `
+            .solution-box, .correct-answer-badge {
+              display: none !important;
+            }
+          ` : ''}
+        }
+      ` }} />
     </div>
   )
 }
@@ -302,7 +361,7 @@ function QuestionCard({
   const editOptions = editBuffer.options ?? q.options ?? {}
 
   return (
-    <div className={`bg-white rounded-2xl card-shadow overflow-hidden ${isEditing ? 'ring-2 ring-navy' : ''}`}>
+    <div className={`bg-white rounded-2xl card-shadow shadow-none-print print-avoid-break overflow-hidden ${isEditing ? 'ring-2 ring-navy' : ''}`}>
       <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-gray-500">Câu {idx + 1}</span>
@@ -311,25 +370,25 @@ function QuestionCard({
           </span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{q.difficulty_level}</span>
           {q.correct_answer && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">
+            <span className="correct-answer-badge text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">
               ĐA: {q.correct_answer}
             </span>
           )}
           {q.needs_review && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-semibold flex items-center gap-1 animate-pulse">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-semibold flex items-center gap-1 animate-pulse no-print">
               <AlertCircle size={10} /> Cần review
             </span>
           )}
         </div>
         {!isEditing ? (
-          <div className="flex gap-1">
+          <div className="flex gap-1 no-print">
             <button onClick={onEdit} className="px-2 py-1 text-xs text-navy bg-navy/10 rounded-lg hover:bg-navy/20">Sửa</button>
             <button onClick={onDelete} className="px-2 py-1 text-xs text-red-500 bg-red-50 rounded-lg hover:bg-red-100">
               <Trash2 size={12} />
             </button>
           </div>
         ) : (
-          <div className="flex gap-1">
+          <div className="flex gap-1 no-print">
             <button onClick={onCancel} className="px-2 py-1 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">Hủy</button>
             <button onClick={onSave} disabled={saving}
               className="flex items-center gap-1 px-2 py-1 text-xs text-white bg-navy rounded-lg hover:bg-navy-dark disabled:opacity-60">
@@ -340,7 +399,7 @@ function QuestionCard({
       </div>
 
       {q.needs_review && q.review_reason && (
-        <div className="px-4 py-2.5 bg-red-50/50 border-b border-gray-100 flex items-center gap-2 text-xs text-red-700 font-medium">
+        <div className="px-4 py-2.5 bg-red-50/50 border-b border-gray-100 flex items-center gap-2 text-xs text-red-700 font-medium no-print">
           <AlertCircle size={14} className="shrink-0 text-red-500" />
           <span><strong>Cảnh báo tự động:</strong> {q.review_reason}</span>
         </div>
@@ -438,7 +497,7 @@ function QuestionCard({
             
             {/* Solution/Explanation display */}
             {q.explanation && (
-              <div className="mt-4 pt-3 border-t border-dashed border-gray-100">
+              <div className="solution-box mt-4 pt-3 border-t border-dashed border-gray-100">
                 <span className="block text-xs font-semibold text-gray-400 uppercase mb-1.5 font-mono">Hướng dẫn giải chi tiết</span>
                 <div className="text-sm text-gray-700 leading-relaxed bg-gray-50/30 p-4 rounded-xl border border-gray-100/50">
                   <RenderLatex text={q.explanation} />

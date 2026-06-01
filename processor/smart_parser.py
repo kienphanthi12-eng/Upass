@@ -68,6 +68,9 @@ _SOLUTION_ANCHORS: list[str] = [
     # Đáp án tham khảo
     r"(?i)(?:^|\n)\s*(?:#{1,3}\s*)?[ĐD][ÁAÀ]P\s+[ÁAÀ]N\s+THAM\s+KH[ẢA]O",
     r"(?i)(?:^|\n)\s*(?:#{1,3}\s*)?DAP\s+AN\s+THAM\s+KHAO",
+    # Lời giải chi tiết / Bài giải chi tiết
+    r"(?i)(?:^|\n)\s*(?:#{1,3}\s*)?(?:L[ỜO]I\s+GI[ẢA]I|B[ÀA]I\s+GI[ẢA]I)\s+CHI\s+TI[ẾE]T",
+    r"(?i)(?:^|\n)\s*(?:#{1,3}\s*)?(?:LOI\s+GIAI|BAI\s+GIAI)\s+CHI\s+TIET",
 ]
 
 # Anchors đánh dấu KẾT THÚC đề thi (trước phần đáp án)
@@ -76,6 +79,10 @@ _END_ANCHORS: list[str] = [
     r"(?i)-{2,}\s*HT\s*-{2,}",
     r"(?i)\*{2,}\s*H[ẾE]T\s*\*{2,}",
     r"(?i)---+\s*END\s*---+",
+    # Hết / HẾT ĐỀ / HẾT. / END độc lập trên dòng
+    r"(?i)(?:^|\n)\s*[-–—_*\s]*\s*H[ẾE]T\s*[-–—_*\s]*(?:\n|$)",
+    r"(?i)(?:^|\n)\s*[-–—_*\s]*\s*HÊT\s*[-–—_*\s]*(?:\n|$)",
+    r"(?i)(?:^|\n)\s*[-–—_*\s]*\s*END\s*[-–—_*\s]*(?:\n|$)",
 ]
 
 # Anchors đánh dấu bắt đầu 1 đề mới (dùng cho multi-exam detection)

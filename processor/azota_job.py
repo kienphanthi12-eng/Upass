@@ -32,8 +32,10 @@ if sys.platform == "win32" and hasattr(sys.stdout, "buffer"):
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), "web", ".env.local"))
-load_dotenv()  # fallback root .env
+# Ưu tiên cấu hình trong root .env để đồng nhất với chạy CLI (có các key của Python/OpenAI hoạt động)
+load_dotenv(override=True)
+# Nạp thêm .env.local nhưng không override các biến quan trọng đã có
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), "web", ".env.local"), override=False)
 
 from database import db
 from processor import subject_structures as ss

@@ -89,7 +89,12 @@ export async function POST(req: NextRequest) {
         const detectResult = execSync(`python "${detectScript}" "${tempPath}"`, { encoding: 'utf8' })
         const check = JSON.parse(detectResult.trim())
         
-        if (importType === 'azota' || check.is_azota) {
+        // Chỉ tự động chuyển sang Azota nếu:
+        // 1. Giáo viên chủ động chọn nhập đề Azota (importType === 'azota')
+        // 2. Hoặc đó là file Word .docx đúng định dạng Azota (vì .docx dịch trực tiếp tốt hơn)
+        // KHÔNG tự động chuyển PDF sang Azota PDF parser ở tab OCR thường vì đó là parser text-only (không trích xuất ảnh/bảng biểu như MinerU).
+        const isAzotaDocx = (ext === 'docx' && check.is_azota)
+        if (importType === 'azota' || isAzotaDocx) {
           routeToAzota = true
           if (!detectedSubject || detectedSubject === '') {
             detectedSubject = check.subject !== 'UNKNOWN' ? check.subject : 'TOAN'
