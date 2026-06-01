@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import { Instrument_Serif, Geist, Geist_Mono } from "next/font/google";
+import { Playfair_Display, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import OwlChatbot from "@/components/OwlChatbot";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 
 
-const instrument = Instrument_Serif({
-  weight: "400",
-  subsets: ["latin", "latin-ext"],
+const playfair = Playfair_Display({
+  subsets: ["latin", "latin-ext", "vietnamese"],
   style: ["normal", "italic"],
-  variable: "--font-instrument",
+  variable: "--font-playfair",
   display: "swap",
 });
 
@@ -20,7 +19,7 @@ const geist = Geist({
 });
 
 const geistMono = Geist_Mono({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
   variable: "--font-geist-mono",
   display: "swap",
 });
@@ -39,7 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`h-full ${instrument.variable} ${geist.variable} ${geistMono.variable}`}
+      className={`h-full ${playfair.variable} ${geist.variable} ${geistMono.variable}`}
     >
       <head>
         <link rel="stylesheet" href="/katex.min.css" />

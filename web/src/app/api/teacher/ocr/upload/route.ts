@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { mineruRequestUploadUrl, mineruUploadFile } from '@/lib/mineru'
-import { spawn } from 'child_process'
+import { spawn, execSync } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
@@ -75,27 +75,113 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ jobId: job.id })
     }
 
-    // ── Xử lý file PDF & Ảnh qua MinerU (OCR pipeline cũ) ────────────────────
-    if (ext === 'pdf' || ['png', 'jpg', 'jpeg'].includes(ext)) {
-      // Step 1: Lấy upload URL từ MinerU
-      const { batchId, uploadUrl } = await mineruRequestUploadUrl(filename)
+    // Save uploaded file to temp path to run local python parser checks
+    const tempPath = path.join(os.tmpdir(), `${job.id}.${ext}`)
+    fs.writeFileSync(tempPath, buffer)
 
-      // Step 2: Upload file bytes lên OSS
-      await mineruUploadFile(uploadUrl, fileBuffer)
+    let routeToAzota = false
+    let detectedSubject = (formData.get('subject') as string) || ''
+    
+    // Perform Azota formatting check for docx/pdf if requested or checking for auto-route
+    if (['docx', 'pdf'].includes(ext)) {
+      try {
+        const detectScript = path.join(process.cwd(), '..', 'processor', 'detect_azota.py')
+        const detectResult = execSync(`python "${detectScript}" "${tempPath}"`, { encoding: 'utf8' })
+        const check = JSON.parse(detectResult.trim())
+        
+        if (importType === 'azota' || check.is_azota) {
+          routeToAzota = true
+          if (!detectedSubject || detectedSubject === '') {
+            detectedSubject = check.subject !== 'UNKNOWN' ? check.subject : 'TOAN'
+          }
+        }
+      } catch (err) {
+        console.error('Format detection failed:', err)
+        // If explicitly requested as azota, we still try to route it
+        if (importType === 'azota') {
+          routeToAzota = true
+          if (!detectedSubject) detectedSubject = 'TOAN'
+        }
+      }
+    }
 
-      // Step 3: Lưu PDF vào Supabase Storage
+    // ── ROUTE 1: Azota pipeline (Direct parse via Python) ───────────────────
+    if (routeToAzota) {
+      const scriptPath = path.join(process.cwd(), '..', 'processor', 'azota_job.py')
+      const child = spawn('python', [
+        scriptPath,
+        '--file_path', tempPath,
+        '--job_id', job.id,
+        '--user_id', user.id,
+        '--filename', filename,
+        '--subject', detectedSubject,
+        '--kind', ext
+      ], {
+        detached: true,
+        stdio: 'ignore'
+      })
+      child.unref()
+
+      await supabase
+        .from('ocr_jobs')
+        .update({
+          status: 'ocr_running',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', job.id)
+
+      return NextResponse.json({ jobId: job.id })
+    }
+
+    // ── ROUTE 2: MinerU OCR Pipeline (Fallback / Default) ───────────────────
+    let mineruFileBuffer: ArrayBuffer = fileBuffer
+    let mineruFilename = filename
+    let mineruExt = ext
+    let pdfTempPath: string | null = null
+
+    // For non-Azota docx: Convert to PDF first, then upload to MinerU
+    if (ext === 'docx') {
+      try {
+        const convertScript = path.join(process.cwd(), '..', 'convert_docx_to_pdf.py')
+        pdfTempPath = path.join(os.tmpdir(), `${job.id}.pdf`)
+        execSync(`python "${convertScript}" "${tempPath}" "${pdfTempPath}"`, { encoding: 'utf8' })
+        
+        if (fs.existsSync(pdfTempPath)) {
+          const buf = fs.readFileSync(pdfTempPath)
+          mineruFileBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+          mineruFilename = filename.replace(/\.docx$/i, '.pdf')
+          mineruExt = 'pdf'
+        } else {
+          throw new Error('PDF conversion failed')
+        }
+      } catch (err) {
+        // Clean up temp files
+        try { fs.unlinkSync(tempPath) } catch {}
+        throw new Error('Không thể chuyển đổi Word sang PDF. Vui lòng tự lưu PDF rồi tải lại.')
+      }
+    }
+
+    // Process PDF and images via MinerU
+    if (mineruExt === 'pdf' || ['png', 'jpg', 'jpeg'].includes(mineruExt)) {
+      // Step 1: Request upload URL from MinerU
+      const { batchId, uploadUrl } = await mineruRequestUploadUrl(mineruFilename)
+
+      // Step 2: Upload file bytes to OSS
+      await mineruUploadFile(uploadUrl, mineruFileBuffer)
+
+      // Step 3: Save PDF to Supabase Storage
       let pdfStoragePath: string | null = null
-      if (ext === 'pdf') {
+      if (mineruExt === 'pdf') {
         try {
           const storagePath = `${user.id}/${job.id}.pdf`
           const { error: storageErr } = await supabase.storage
             .from('teacher-pdfs')
-            .upload(storagePath, fileBuffer, { contentType: 'application/pdf', upsert: false })
+            .upload(storagePath, mineruFileBuffer, { contentType: 'application/pdf', upsert: false })
           if (!storageErr) pdfStoragePath = storagePath
         } catch { /* storage failure is non-critical */ }
       }
 
-      // Cập nhật job với batch_id, đổi status → ocr_running
+      // Update job with batch_id and status -> ocr_running
       await supabase
         .from('ocr_jobs')
         .update({
@@ -106,12 +192,20 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', job.id)
 
+      // Clean up temp files
+      try { fs.unlinkSync(tempPath) } catch {}
+      if (pdfTempPath && fs.existsSync(pdfTempPath)) {
+        try { fs.unlinkSync(pdfTempPath) } catch {}
+      }
+
       return NextResponse.json({ jobId: job.id })
     }
 
-    // ── DOCX / TEX / XLSX / ZIP — không hỗ trợ trên server ──────────────────
-    // (Cần Python + processor/ script, chỉ chạy được trên máy local)
-    if (['docx', 'tex', 'xlsx', 'zip'].includes(ext)) {
+    // Clean up temp file
+    try { fs.unlinkSync(tempPath) } catch {}
+
+    // Other non-supported formats
+    if (['tex', 'xlsx', 'zip'].includes(ext)) {
       await supabase.from('ocr_jobs').delete().eq('id', job.id)
       return NextResponse.json(
         { error: `Định dạng .${ext} chưa được hỗ trợ trên server. Vui lòng chuyển sang PDF rồi tải lại.` },

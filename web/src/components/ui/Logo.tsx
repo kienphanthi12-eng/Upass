@@ -52,7 +52,7 @@ export function LogoMark({
       <text
         x="22"
         y="32.5"
-        fontFamily="var(--font-instrument), Georgia, serif"
+        fontFamily="var(--font-playfair), Georgia, serif"
         fontStyle="italic"
         fontSize="29"
         textAnchor="middle"

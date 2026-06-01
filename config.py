@@ -31,6 +31,10 @@ DEEPSEEK_API_KEY  = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_MODEL    = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 
+# Model LLM riêng cho pipeline Azota (rẻ nhất). Dùng chung API key/endpoint ở trên.
+# deepseek-chat không có trên endpoint Alibaba → mặc định qwen-turbo (rẻ nhất khả dụng).
+AZOTA_LLM_MODEL   = os.getenv("AZOTA_LLM_MODEL", "qwen-turbo")
+
 # ─── Scraping ─────────────────────────────────────────────────────────────────
 SCRAPE_FROM_YEAR     = int(os.getenv("SCRAPE_FROM_YEAR", 2021))
 DOWNLOAD_CONCURRENT  = int(os.getenv("DOWNLOAD_CONCURRENT", 3))

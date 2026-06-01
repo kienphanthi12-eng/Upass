@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 /**
- * Editorial display heading — Instrument Serif, big, tight tracking.
+ * Editorial display heading — Playfair Display, big, tight tracking.
  * Use for hero/section H1 and H2.
  */
 export default function DisplayHeading({

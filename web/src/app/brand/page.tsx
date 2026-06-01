@@ -331,7 +331,7 @@ export default function BrandHubPage() {
                   <div className="border-b border-line pb-8">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono text-ink-50 uppercase tracking-wider">Font Tiêu đề (Serif)</span>
-                      <span className="text-xs font-mono font-semibold text-moss">Instrument Serif</span>
+                      <span className="text-xs font-mono font-semibold text-moss">Playfair Display</span>
                     </div>
                     <p className="mt-4 font-display text-5xl sm:text-6xl text-ink leading-tight">
                       Chinh phục kỳ thi <em className="italic text-moss font-display">THPT Quốc Gia</em> bằng cách khác biệt.

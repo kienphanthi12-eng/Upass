@@ -210,18 +210,30 @@ export default function UploadPage() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [jobId, setJobId] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
-  const [importType, setImportType] = useState<'text' | 'pdf2'>('text')
+  const [importType, setImportType] = useState<'text' | 'pdf2' | 'azota'>('text')
+  const [subject, setSubject] = useState('TOAN')
 
   const handleFileDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     const f = e.dataTransfer.files[0]
     if (f) {
       const ext = f.name.split('.').pop()?.toLowerCase()
-      const allowed = importType === 'pdf2' ? ['pdf'] : ['pdf', 'docx', 'xlsx', 'tex', 'zip', 'png', 'jpg', 'jpeg']
+      const allowed =
+        importType === 'pdf2'
+          ? ['pdf']
+          : importType === 'azota'
+          ? ['pdf', 'docx']
+          : ['pdf', 'docx', 'xlsx', 'tex', 'zip', 'png', 'jpg', 'jpeg']
       if (ext && allowed.includes(ext)) {
         setFile(f)
       } else {
-        alert(importType === 'pdf2' ? 'Chỉ hỗ trợ file PDF đối với phương pháp Tải đề PDF 2' : 'Định dạng file không hỗ trợ')
+        alert(
+          importType === 'pdf2'
+            ? 'Chỉ hỗ trợ file PDF đối với phương pháp Tải đề PDF 2'
+            : importType === 'azota'
+            ? 'Chỉ hỗ trợ file Word (.docx) hoặc PDF đối với phương pháp Azota'
+            : 'Định dạng file không hỗ trợ'
+        )
       }
     }
   }, [importType])
@@ -317,6 +329,9 @@ export default function UploadPage() {
     const form = new FormData()
     form.append('pdf', file)
     form.append('import_type', importType)
+    if (importType === 'azota') {
+      form.append('subject', subject)
+    }
 
     const res = await fetch('/api/teacher/ocr/upload', { method: 'POST', body: form })
     const data = await res.json()
@@ -346,35 +361,75 @@ export default function UploadPage() {
 
       {/* Phương thức import */}
       {phase === 'idle' && (
-        <div className="mt-8 flex gap-4 border-b border-line pb-6">
-          <button
-            type="button"
-            onClick={() => {
-              setImportType('text')
-              setFile(null)
-            }}
-            className={`px-5 py-2.5 text-sm font-medium border transition-all ${
-              importType === 'text'
-                ? 'bg-ink text-paper border-ink'
-                : 'bg-transparent text-ink-50 border-line hover:border-ink hover:text-ink'
-            }`}
-          >
-            Số hóa Text & Công thức (OCR)
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setImportType('pdf2')
-              setFile(null)
-            }}
-            className={`px-5 py-2.5 text-sm font-medium border transition-all ${
-              importType === 'pdf2'
-                ? 'bg-ink text-paper border-ink'
-                : 'bg-transparent text-ink-50 border-line hover:border-ink hover:text-ink'
-            }`}
-          >
-            Tải đề PDF 2 (Cắt câu dạng ảnh)
-          </button>
+        <div className="mt-8 flex flex-col gap-6 border-b border-line pb-6">
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setImportType('text')
+                setFile(null)
+              }}
+              className={`px-5 py-2.5 text-sm font-medium border transition-all ${
+                importType === 'text'
+                  ? 'bg-ink text-paper border-ink'
+                  : 'bg-transparent text-ink-50 border-line hover:border-ink hover:text-ink'
+              }`}
+            >
+              Số hóa Text & Công thức (OCR)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setImportType('pdf2')
+                setFile(null)
+              }}
+              className={`px-5 py-2.5 text-sm font-medium border transition-all ${
+                importType === 'pdf2'
+                  ? 'bg-ink text-paper border-ink'
+                  : 'bg-transparent text-ink-50 border-line hover:border-ink hover:text-ink'
+              }`}
+            >
+              Tải đề PDF 2 (Cắt câu dạng ảnh)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setImportType('azota')
+                setFile(null)
+              }}
+              className={`px-5 py-2.5 text-sm font-medium border transition-all ${
+                importType === 'azota'
+                  ? 'bg-ink text-paper border-ink'
+                  : 'bg-transparent text-ink-50 border-line hover:border-ink hover:text-ink'
+              }`}
+            >
+              Nhập đề thi Azota (Word/PDF)
+            </button>
+          </div>
+
+          {/* Subject select for Azota */}
+          {importType === 'azota' && (
+            <div className="flex flex-col gap-2 max-w-xs animate-fade-in">
+              <label htmlFor="subject-select" className="text-xs tracking-label text-ink-50 font-mono">
+                Chọn môn học để kiểm tra cấu trúc
+              </label>
+              <select
+                id="subject-select"
+                value={subject}
+                onChange={e => setSubject(e.target.value)}
+                className="w-full px-4 py-2 border border-line bg-paper text-ink text-sm rounded focus:outline-none focus:border-ink transition-colors font-sans"
+              >
+                <option value="TOAN">Toán</option>
+                <option value="LY">Vật lý</option>
+                <option value="HOA">Hóa học</option>
+                <option value="SINH">Sinh học</option>
+                <option value="SU">Lịch sử</option>
+                <option value="DIA">Địa lý</option>
+                <option value="GDCD">GDCD / GDKT&PL</option>
+                <option value="ANH">Tiếng Anh</option>
+              </select>
+            </div>
+          )}
         </div>
       )}
 
@@ -390,17 +445,34 @@ export default function UploadPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept={importType === 'pdf2' ? '.pdf' : '.pdf,.docx,.xlsx,.tex,.zip,.png,.jpg,.jpeg'}
+              accept={
+                importType === 'pdf2'
+                  ? '.pdf'
+                  : importType === 'azota'
+                  ? '.pdf,.docx'
+                  : '.pdf,.docx,.xlsx,.tex,.zip,.png,.jpg,.jpeg'
+              }
               className="hidden"
               onChange={e => {
                 const f = e.target.files?.[0] ?? null
                 if (f) {
                   const ext = f.name.split('.').pop()?.toLowerCase()
-                  const allowed = importType === 'pdf2' ? ['pdf'] : ['pdf', 'docx', 'xlsx', 'tex', 'zip', 'png', 'jpg', 'jpeg']
+                  const allowed =
+                    importType === 'pdf2'
+                      ? ['pdf']
+                      : importType === 'azota'
+                      ? ['pdf', 'docx']
+                      : ['pdf', 'docx', 'xlsx', 'tex', 'zip', 'png', 'jpg', 'jpeg']
                   if (ext && allowed.includes(ext)) {
                     setFile(f)
                   } else {
-                    alert('Chỉ hỗ trợ file PDF đối với phương pháp Tải đề PDF 2')
+                    alert(
+                      importType === 'pdf2'
+                        ? 'Chỉ hỗ trợ file PDF đối với phương pháp Tải đề PDF 2'
+                        : importType === 'azota'
+                        ? 'Chỉ hỗ trợ file Word (.docx) hoặc PDF đối với phương pháp Azota'
+                        : 'Định dạng file không hỗ trợ'
+                    )
                   }
                 }
               }}
@@ -410,6 +482,8 @@ export default function UploadPage() {
             <p className="text-xs tracking-label text-ink-50 mt-3">
               {importType === 'pdf2'
                 ? 'Chỉ hỗ trợ PDF (Tối đa 50MB) - Phân đoạn tự động dạng ảnh chuẩn xác 100%'
+                : importType === 'azota'
+                ? 'Hỗ trợ Word (.docx) hoặc PDF (Tối đa 50MB) - Phân tích gạch chân & bảng đáp án nhanh chóng'
                 : 'Hỗ trợ PDF, Word, Excel, Latex, Zip, Ảnh (Tối đa 50MB)'}
             </p>
           </div>

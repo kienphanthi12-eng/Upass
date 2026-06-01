@@ -14,6 +14,7 @@ const navLinks = [
   { href: '/practice',    label: 'Luyện tập' },
   { href: '/leaderboard', label: 'Xếp hạng' },
   { href: '/pricing',     label: 'Bảng giá' },
+  { href: '/blog',        label: 'Blog' },
 ]
 
 export default function Header() {

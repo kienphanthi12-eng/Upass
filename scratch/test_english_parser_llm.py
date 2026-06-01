@@ -1,3 +1,6 @@
+# DEPRECATED — script thử nghiệm dùng pipeline DeepSeek cũ (normalize_raw_markdown,
+# split_normalized_text, process_single_question). Các hàm này đã bị xóa khỏi
+# import_exam_deepseek.py (refactor 2026-06-01). Script này không còn chạy được.
 import sys
 import io
 import asyncio

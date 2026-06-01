@@ -62,7 +62,7 @@ export default function LandingPage() {
                 </ScrollReveal>
 
                 <ScrollReveal delay={0.1}>
-                  <DisplayHeading size="2xl" className="mt-8 max-w-5xl">
+                  <DisplayHeading size="xl" className="mt-8 max-w-5xl">
                     Chinh phục kỳ thi <em className="font-display italic text-moss">THPT</em>
                     <br />
                     bằng cách khác biệt.
