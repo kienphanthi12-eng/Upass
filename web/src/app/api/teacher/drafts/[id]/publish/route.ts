@@ -46,6 +46,7 @@ export async function POST(
       options: Record<string, string> | null
       correct_answer: string | null
       difficulty_level: string
+      explanation: string | null
     }>
 
     if (questions.length === 0) {
@@ -84,6 +85,7 @@ export async function POST(
         level: q.difficulty_level,
         options: q.options,
         correct_answer: q.correct_answer,
+        explanation: q.explanation || null,
         has_formula: /\$/.test(q.content || ''),
         has_image: /!\[/.test(q.content || ''),
       }))

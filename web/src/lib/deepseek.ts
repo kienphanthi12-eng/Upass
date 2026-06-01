@@ -280,6 +280,9 @@ export async function extractQuestions(
         difficulty_level:   normalizeLevel(String(parsed.level ?? '')),
         topic:              parsed.topic ? String(parsed.topic).trim() : null,
         source_question_id: null,
+        explanation:        parsed.explanation ? String(parsed.explanation).trim() : null,
+        needs_review:       false,
+        review_reason:      null,
       }
     } catch {
       completed++

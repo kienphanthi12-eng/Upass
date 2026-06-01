@@ -315,6 +315,11 @@ function QuestionCard({
               ĐA: {q.correct_answer}
             </span>
           )}
+          {q.needs_review && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-semibold flex items-center gap-1 animate-pulse">
+              <AlertCircle size={10} /> Cần review
+            </span>
+          )}
         </div>
         {!isEditing ? (
           <div className="flex gap-1">
@@ -333,6 +338,13 @@ function QuestionCard({
           </div>
         )}
       </div>
+
+      {q.needs_review && q.review_reason && (
+        <div className="px-4 py-2.5 bg-red-50/50 border-b border-gray-100 flex items-center gap-2 text-xs text-red-700 font-medium">
+          <AlertCircle size={14} className="shrink-0 text-red-500" />
+          <span><strong>Cảnh báo tự động:</strong> {q.review_reason}</span>
+        </div>
+      )}
 
       <div className="px-4 py-4">
         {isEditing ? (
@@ -393,6 +405,16 @@ function QuestionCard({
                 </select>
               </div>
             </div>
+
+            {/* Explanation editor */}
+            <div className="mt-3">
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Hướng dẫn giải (Lời giải chi tiết)</label>
+              <LatexEditor
+                value={editBuffer.explanation ?? q.explanation ?? ''}
+                onChange={v => setEditBuffer({ ...editBuffer, explanation: v })}
+                rows={3}
+              />
+            </div>
           </div>
         ) : (
           <>
@@ -411,6 +433,16 @@ function QuestionCard({
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+            
+            {/* Solution/Explanation display */}
+            {q.explanation && (
+              <div className="mt-4 pt-3 border-t border-dashed border-gray-100">
+                <span className="block text-xs font-semibold text-gray-400 uppercase mb-1.5 font-mono">Hướng dẫn giải chi tiết</span>
+                <div className="text-sm text-gray-700 leading-relaxed bg-gray-50/30 p-4 rounded-xl border border-gray-100/50">
+                  <RenderLatex text={q.explanation} />
+                </div>
               </div>
             )}
           </>

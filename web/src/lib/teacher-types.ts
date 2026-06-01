@@ -50,6 +50,9 @@ export interface DraftQuestion {
   difficulty_level: string
   topic: string | null
   source_question_id: string | null
+  explanation: string | null
+  needs_review: boolean
+  review_reason: string | null
   created_at: string
   updated_at: string
 }
